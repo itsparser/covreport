@@ -1,22 +1,17 @@
-name: 'Coverage Report '
-description: 'Comments a pull request with the pytest code coverage badge and full report'
-author: 'itsparser'
+name: "Coverage Report "
+description: "Comments a pull request with the pytest code coverage badge and full report"
+author: "itsparser"
 branding:
-  icon: 'message-circle'
-  color: 'orange'
+  icon: "message-circle"
+  color: "purple"
 
 inputs:
   github-token:
-    description: 'GitHub API Access Token'
+    description: "GitHub API Access Token"
     default: ${{ github.token }}
     required: true
 
   test-config-path:
-    description: 'The location of the test config yml'
-    default: '.github/test-config.yml'
-    required: false
-
-  pytest-xml-coverage-path:
-    description: 'The location of coverage-xml from pytest-coverage'
-    default: ''
+    description: "The location of the test config yml"
+    default: ".github/test-config.yml"
     required: false

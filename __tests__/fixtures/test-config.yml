@@ -1,0 +1,7 @@
+
+matchers:
+  user:
+    - any: ['*.pdf']
+
+commands:
+  user: ""
