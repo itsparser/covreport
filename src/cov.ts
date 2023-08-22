@@ -24,21 +24,21 @@ type StringOrMatchConfig = string | MatchConfig;
  * @return {Array<number>}
  */
 function getPrNumbers(): number[] {
-    const pullRequestNumbers = core.getMultilineInput('pr-number');
-    if (pullRequestNumbers && pullRequestNumbers.length) {
-        const prNumbers: number[] = [];
+    // const pullRequestNumbers = core.getMultilineInput('pr-number');
+    // if (pullRequestNumbers && pullRequestNumbers.length) {
+    //     const prNumbers: number[] = [];
 
-        for (const prNumber of pullRequestNumbers) {
-        const prNumberInt = parseInt(prNumber, 10);
-        if (isNaN(prNumberInt) || prNumberInt <= 0) {
-            core.warning(`'${prNumber}' is not a valid pull request number`);
-        } else {
-            prNumbers.push(prNumberInt);
-        }
-        }
+    //     for (const prNumber of pullRequestNumbers) {
+    //     const prNumberInt = parseInt(prNumber, 10);
+    //     if (isNaN(prNumberInt) || prNumberInt <= 0) {
+    //         core.warning(`'${prNumber}' is not a valid pull request number`);
+    //     } else {
+    //         prNumbers.push(prNumberInt);
+    //     }
+    //     }
 
-        return prNumbers;
-    }
+    //     return prNumbers;
+    // }
 
     const pullRequest = github.context.payload.pull_request;
     if (!pullRequest) {
@@ -92,7 +92,7 @@ function getConfig(
         commands: new Map()
     };
     const givenMatchers = configObject["matchers"];
-    const givenCommands = configObject["matchers"];
+    const givenCommands = configObject["commands"];
 
     const matchers = config["matchers"];
     const commands = config["commands"];
@@ -101,7 +101,7 @@ function getConfig(
             matchers.set(label, givenMatchers[label]);
         } else {
             throw Error(
-                `found unexpected type for label ${label} (should be string or array of globs)`
+                `found unexpected type for matchers ${label} (should be string or array of globs)`
             );
         }
     }
@@ -110,7 +110,7 @@ function getConfig(
             commands.set(command, givenCommands[command]);
         } else {
             throw Error(
-                `found unexpected type for label ${command} (should be string or array of globs)`
+                `found unexpected type for commands ${command} (should be string or array of globs)`
             );
         }
     }

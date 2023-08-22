@@ -6,17 +6,16 @@ branding:
   color: "purple"
 
 inputs:
-  github-token:
+  repo-token:
     description: "GitHub API Access Token"
     default: ${{ github.token }}
     required: true
 
-  test-config-path:
+  configuration-path:
     description: "The location of the test config yml"
     default: ".github/test-config.yml"
     required: false
 
-
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: "node16"
+  main: "dist/index.js"
