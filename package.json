@@ -1,0 +1,30 @@
+{
+  "name": "covreport",
+  "version": "1.0.0",
+  "description": "covreport will share the converage report based on the report generate by the code",
+  "main": "index.js",
+  "scripts": {
+    "test": "ncc build src/index.js --license licenses.txt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsparser/covreport.git"
+  },
+  "keywords": [
+    "coverage",
+    "report",
+    "github",
+    "action",
+    "test",
+    "case"
+  ],
+  "author": "itsparser",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/itsparser/covreport/issues"
+  },
+  "homepage": "https://github.com/itsparser/covreport#readme",
+  "devDependencies": {
+    "typescript": "^5.1.6"
+  }
+}
