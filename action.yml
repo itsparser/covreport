@@ -15,3 +15,8 @@ inputs:
     description: "The location of the test config yml"
     default: ".github/test-config.yml"
     required: false
+
+
+runs:
+  using: 'node16'
+  main: 'index.js'
