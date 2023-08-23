@@ -1,4 +1,4 @@
-name: "Test Coverage Report "
+name: "Code Coverage Report "
 description: "Comments a pull request with the pytest code coverage badge and full report"
 author: "itsparser"
 branding:
