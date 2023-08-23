@@ -95,29 +95,6 @@ async function fetchContent(
 
 function getConfig(configObject: any): TestConfig {
   const config: CovReportConfig = configObject;
-  // const givenMatchers = configObject["matchers"];
-  // const givenCommands = configObject["commands"];
-
-  // const matchers = config.matchers;
-  // const commands = config.commands;
-  // for (const label in givenMatchers) {
-  //   if (givenMatchers[label] instanceof Array) {
-  //     matchers.set(label, givenMatchers[label]);
-  //   } else {
-  //     throw Error(
-  //       `found unexpected type for matchers ${label} (should be string or array of globs)`
-  //     );
-  //   }
-  // }
-  // for (const command in givenCommands) {
-  //   if (typeof givenCommands[command] === "string") {
-  //     commands.set(command, givenCommands[command]);
-  //   } else {
-  //     throw Error(
-  //       `found unexpected type for commands ${command} (should be string or array of globs)`
-  //     );
-  //   }
-  // }
 
   return config;
 }
@@ -179,35 +156,6 @@ function isMatch(changedFile: string, matchers: Minimatch[]): boolean {
 
   core.debug(`   all patterns matched`);
   return true;
-}
-
-// equivalent to "Array.every()" but expanded for debugging and clarity
-function checkAll(changedFiles: string[], patterns: string[]): boolean {
-  const matchers = patterns.map((g) => new Minimatch(g));
-  core.debug(` checking "all" patterns`);
-  for (const changedFile of changedFiles) {
-    if (!isMatch(changedFile, matchers)) {
-      core.debug(`  "all" patterns did not match against ${changedFile}`);
-      return false;
-    }
-  }
-  core.debug(`  "all" patterns matched all files`);
-  return true;
-}
-
-// equivalent to "Array.some()" but expanded for debugging and clarity
-function checkAny(changedFiles: string[], globs: string[]): boolean {
-  const matchers = globs.map((g) => new Minimatch(g));
-  core.debug(`  checking "any" patterns`);
-  for (const changedFile of changedFiles) {
-    if (isMatch(changedFile, matchers)) {
-      core.debug(`  "any" patterns matched against ${changedFile}`);
-      return true;
-    }
-  }
-
-  core.debug(`  "any" patterns did not match any files`);
-  return false;
 }
 
 function checkMatch(changedFiles: string[], matchConfig: MatchConfig): boolean {
