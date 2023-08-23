@@ -14105,6 +14105,12 @@ function getChangedFiles(client, prNumber) {
         return changedFiles;
     });
 }
+/**
+ * fetchContent - will fetch the file from the github repository
+ * @param client - Client Type object from the octakit
+ * @param repoPath - Repository path from where the file can be accessiable
+ * @return {Promise<string>}
+ */
 function fetchContent(client, repoPath) {
     return __awaiter(this, void 0, void 0, function* () {
         const response = yield client.rest.repos.getContent({
@@ -14117,32 +14123,37 @@ function fetchContent(client, repoPath) {
     });
 }
 function getConfig(configObject) {
-    const config = {
-        matchers: new Map(),
-        commands: new Map(),
-    };
-    const givenMatchers = configObject["matchers"];
-    const givenCommands = configObject["commands"];
-    const matchers = config["matchers"];
-    const commands = config["commands"];
-    for (const label in givenMatchers) {
-        if (givenMatchers[label] instanceof Array) {
-            matchers.set(label, givenMatchers[label]);
-        }
-        else {
-            throw Error(`found unexpected type for matchers ${label} (should be string or array of globs)`);
-        }
-    }
-    for (const command in givenCommands) {
-        if (typeof givenCommands[command] === "string") {
-            commands.set(command, givenCommands[command]);
-        }
-        else {
-            throw Error(`found unexpected type for commands ${command} (should be string or array of globs)`);
-        }
-    }
+    const config = configObject;
+    // const givenMatchers = configObject["matchers"];
+    // const givenCommands = configObject["commands"];
+    // const matchers = config.matchers;
+    // const commands = config.commands;
+    // for (const label in givenMatchers) {
+    //   if (givenMatchers[label] instanceof Array) {
+    //     matchers.set(label, givenMatchers[label]);
+    //   } else {
+    //     throw Error(
+    //       `found unexpected type for matchers ${label} (should be string or array of globs)`
+    //     );
+    //   }
+    // }
+    // for (const command in givenCommands) {
+    //   if (typeof givenCommands[command] === "string") {
+    //     commands.set(command, givenCommands[command]);
+    //   } else {
+    //     throw Error(
+    //       `found unexpected type for commands ${command} (should be string or array of globs)`
+    //     );
+    //   }
+    // }
     return config;
 }
+/**
+ * getCovReportConfig - Get the Configuration for
+ * @param client - Client Type object from the octakit
+ * @param configurationPath - Repository path from where the file can be accessiable
+ * @return {Promise<CovReportConfig>}
+ */
 function getTestConfig(client, configurationPath) {
     return __awaiter(this, void 0, void 0, function* () {
         let configurationContent;
@@ -14166,8 +14177,8 @@ function getTestConfig(client, configurationPath) {
         }
         // loads (hopefully) a `{[label:string]: string | StringOrMatchConfig[]}`, but is `any`:
         const configObject = yaml.load(configurationContent);
-        // transform `any` => `TestConfig` or throw if yaml is malformed:
-        return getConfig(configObject);
+        const tconfigObject = configObject;
+        return tconfigObject;
     });
 }
 function printPattern(matcher) {
@@ -14186,8 +14197,8 @@ function isMatch(changedFile, matchers) {
     return true;
 }
 // equivalent to "Array.every()" but expanded for debugging and clarity
-function checkAll(changedFiles, globs) {
-    const matchers = globs.map((g) => new minimatch_1.Minimatch(g));
+function checkAll(changedFiles, patterns) {
+    const matchers = patterns.map((g) => new minimatch_1.Minimatch(g));
     core.debug(` checking "all" patterns`);
     for (const changedFile of changedFiles) {
         if (!isMatch(changedFile, matchers)) {
@@ -14213,21 +14224,26 @@ function checkAny(changedFiles, globs) {
 }
 function checkMatch(changedFiles, matchConfig) {
     if (matchConfig.all !== undefined) {
-        if (!checkAll(changedFiles, matchConfig.all)) {
-            return false;
-        }
+        const allMatcher = matchConfig.all.map((config) => new minimatch_1.Minimatch(config));
+        const result = allMatcher.every((matcher) => changedFiles.some((file) => matcher.match(file)));
+        core.info(`Result for the Match [All] ${result}`);
+        return result;
     }
     if (matchConfig.any !== undefined) {
-        if (!checkAny(changedFiles, matchConfig.any)) {
-            return false;
-        }
+        // if (!checkAny(changedFiles, matchConfig.any)) {
+        //   return false;
+        // }
+        const anyMatcher = matchConfig.any.map((config) => new minimatch_1.Minimatch(config));
+        const result = anyMatcher.some((matcher) => changedFiles.some((file) => matcher.match(file)));
+        core.info(`Result for the Match [Any] ${result}`);
+        return result;
     }
     return true;
 }
-function checkPattern(changedFiles, globs) {
-    for (const glob of globs) {
-        core.debug(` checking pattern ${JSON.stringify(glob)}`);
-        if (checkMatch(changedFiles, glob)) {
+function checkPattern(changedFiles, configs) {
+    for (const config of configs) {
+        core.info(` checking pattern ${JSON.stringify(config)}`);
+        if (checkMatch(changedFiles, config)) {
             return true;
         }
     }
@@ -14248,7 +14264,6 @@ function run() {
             const client = github.getOctokit(token, {}); // , pluginRetry.retry
             const testConfigs = yield getTestConfig(client, configPath);
             const matchers = testConfigs.matchers;
-            const commands = testConfigs.commands;
             for (const prNumber of prNumbers) {
                 core.debug(`looking for pr #${prNumber}`);
                 let pullRequest;
@@ -14270,15 +14285,16 @@ function run() {
                     core.warning(`Pull request #${prNumber} has no changed files, skipping`);
                     continue;
                 }
-                let commands = new Set();
-                for (const [key, command] of commands.entries()) {
-                    core.debug(`check for patter for key ${key}`);
-                    const globs = matchers[key];
-                    if (checkPattern(changedFiles, globs)) {
-                        commands.add(command);
+                let exeCommands = new Set();
+                const commands = testConfigs.commands;
+                for (const key in commands) {
+                    const command = commands[key];
+                    const matcherConfig = matchers[key];
+                    if (checkPattern(changedFiles, matcherConfig)) {
+                        exeCommands.add(command);
                     }
                 }
-                for (const command of commands) {
+                for (const command of exeCommands) {
                     core.warning(`Command List for which the test case will get executed from the Application #${command} has no changed files, skipping`);
                 }
             }

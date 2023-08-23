@@ -12,6 +12,11 @@ interface TestConfig {
   commands: Map<string, string>;
 }
 
+interface CovReportConfig {
+  matchers: any;
+  commands: any;
+}
+
 interface MatchConfig {
   all?: string[];
   any?: string[];
@@ -68,6 +73,12 @@ async function getChangedFiles(
   return changedFiles;
 }
 
+/**
+ * fetchContent - will fetch the file from the github repository
+ * @param client - Client Type object from the octakit
+ * @param repoPath - Repository path from where the file can be accessiable
+ * @return {Promise<string>}
+ */
 async function fetchContent(
   client: ClientType,
   repoPath: string
@@ -83,41 +94,44 @@ async function fetchContent(
 }
 
 function getConfig(configObject: any): TestConfig {
-  const config: TestConfig = {
-    matchers: new Map(),
-    commands: new Map(),
-  };
-  const givenMatchers = configObject["matchers"];
-  const givenCommands = configObject["commands"];
+  const config: CovReportConfig = configObject;
+  // const givenMatchers = configObject["matchers"];
+  // const givenCommands = configObject["commands"];
 
-  const matchers = config["matchers"];
-  const commands = config["commands"];
-  for (const label in givenMatchers) {
-    if (givenMatchers[label] instanceof Array) {
-      matchers.set(label, givenMatchers[label]);
-    } else {
-      throw Error(
-        `found unexpected type for matchers ${label} (should be string or array of globs)`
-      );
-    }
-  }
-  for (const command in givenCommands) {
-    if (typeof givenCommands[command] === "string") {
-      commands.set(command, givenCommands[command]);
-    } else {
-      throw Error(
-        `found unexpected type for commands ${command} (should be string or array of globs)`
-      );
-    }
-  }
+  // const matchers = config.matchers;
+  // const commands = config.commands;
+  // for (const label in givenMatchers) {
+  //   if (givenMatchers[label] instanceof Array) {
+  //     matchers.set(label, givenMatchers[label]);
+  //   } else {
+  //     throw Error(
+  //       `found unexpected type for matchers ${label} (should be string or array of globs)`
+  //     );
+  //   }
+  // }
+  // for (const command in givenCommands) {
+  //   if (typeof givenCommands[command] === "string") {
+  //     commands.set(command, givenCommands[command]);
+  //   } else {
+  //     throw Error(
+  //       `found unexpected type for commands ${command} (should be string or array of globs)`
+  //     );
+  //   }
+  // }
 
   return config;
 }
 
+/**
+ * getCovReportConfig - Get the Configuration for
+ * @param client - Client Type object from the octakit
+ * @param configurationPath - Repository path from where the file can be accessiable
+ * @return {Promise<CovReportConfig>}
+ */
 async function getTestConfig(
   client: ClientType,
   configurationPath: string
-): Promise<TestConfig> {
+): Promise<CovReportConfig> {
   let configurationContent: string;
   try {
     if (!fs.existsSync(configurationPath)) {
@@ -145,8 +159,8 @@ async function getTestConfig(
   // loads (hopefully) a `{[label:string]: string | StringOrMatchConfig[]}`, but is `any`:
   const configObject: any = yaml.load(configurationContent);
 
-  // transform `any` => `TestConfig` or throw if yaml is malformed:
-  return getConfig(configObject);
+  const tconfigObject: CovReportConfig = configObject;
+  return tconfigObject;
 }
 
 function printPattern(matcher: Minimatch): string {
@@ -168,8 +182,8 @@ function isMatch(changedFile: string, matchers: Minimatch[]): boolean {
 }
 
 // equivalent to "Array.every()" but expanded for debugging and clarity
-function checkAll(changedFiles: string[], globs: string[]): boolean {
-  const matchers = globs.map((g) => new Minimatch(g));
+function checkAll(changedFiles: string[], patterns: string[]): boolean {
+  const matchers = patterns.map((g) => new Minimatch(g));
   core.debug(` checking "all" patterns`);
   for (const changedFile of changedFiles) {
     if (!isMatch(changedFile, matchers)) {
@@ -198,15 +212,21 @@ function checkAny(changedFiles: string[], globs: string[]): boolean {
 
 function checkMatch(changedFiles: string[], matchConfig: MatchConfig): boolean {
   if (matchConfig.all !== undefined) {
-    if (!checkAll(changedFiles, matchConfig.all)) {
-      return false;
-    }
+    const allMatcher = matchConfig.all.map((config) => new Minimatch(config));
+    const result = allMatcher.every((matcher) =>
+      changedFiles.some((file) => matcher.match(file))
+    );
+    core.info(`Result for the Match [All] ${result}`);
+    return result;
   }
 
   if (matchConfig.any !== undefined) {
-    if (!checkAny(changedFiles, matchConfig.any)) {
-      return false;
-    }
+    const anyMatcher = matchConfig.any.map((config) => new Minimatch(config));
+    const result = anyMatcher.some((matcher) =>
+      changedFiles.some((file) => matcher.match(file))
+    );
+    core.info(`Result for the Match [Any] ${result}`);
+    return result;
   }
 
   return true;
@@ -214,11 +234,11 @@ function checkMatch(changedFiles: string[], matchConfig: MatchConfig): boolean {
 
 export function checkPattern(
   changedFiles: string[],
-  globs: MatchConfig[]
+  configs: MatchConfig[]
 ): boolean {
-  for (const glob of globs) {
-    core.debug(` checking pattern ${JSON.stringify(glob)}`);
-    if (checkMatch(changedFiles, glob)) {
+  for (const config of configs) {
+    core.info(` checking pattern ${JSON.stringify(config)}`);
+    if (checkMatch(changedFiles, config)) {
       return true;
     }
   }
@@ -238,9 +258,12 @@ export async function run() {
 
     const client: ClientType = github.getOctokit(token, {}); // , pluginRetry.retry
 
-    const testConfigs: TestConfig = await getTestConfig(client, configPath);
+    const testConfigs: CovReportConfig = await getTestConfig(
+      client,
+      configPath
+    );
+
     const matchers = testConfigs.matchers;
-    const commands = testConfigs.commands;
 
     for (const prNumber of prNumbers) {
       core.debug(`looking for pr #${prNumber}`);
@@ -265,16 +288,18 @@ export async function run() {
         continue;
       }
 
-      let commands: Set<string> = new Set();
+      let exeCommands: Set<string> = new Set();
+      const commands: any = testConfigs.commands;
 
-      for (const [key, command] of commands.entries()) {
-        core.debug(`check for patter for key ${key}`);
-        const globs: MatchConfig[] = matchers[key];
-        if (checkPattern(changedFiles, globs)) {
-          commands.add(command);
+      for (const key in commands) {
+        const command: string = commands[key];
+        const matcherConfig: MatchConfig[] = matchers[key];
+        core.info(` checking pattern ${key}`);
+        if (checkPattern(changedFiles, matcherConfig)) {
+          exeCommands.add(command);
         }
       }
-      for (const command of commands) {
+      for (const command of exeCommands) {
         core.warning(
           `Command List for which the test case will get executed from the Application #${command} has no changed files, skipping`
         );
